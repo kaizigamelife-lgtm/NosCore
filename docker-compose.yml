@@ -1,9 +1,9 @@
-version: '3.7'
+version: '3.8'
 
 services:
   db:
     container_name: noscore-db
-    image: postgres:12.0-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
@@ -15,6 +15,12 @@ services:
       - ./postgres:/var/lib/postgresql/data
     networks:
       - noscore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d noscore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   reverse-proxy:
     container_name: noscore-reverse-proxy
@@ -28,7 +34,7 @@ services:
       - 1337
     networks:
       - noscore-network
- 
+
   master:
     container_name: noscore-master
     environment:
@@ -43,11 +49,14 @@ services:
       - 5000:5000
     expose:
       - 5432
-    networks: 
+    networks:
       - noscore-network
     volumes:
       - ./build/net10.0/linux-musl-x64:/app/build/net10.0
-      - ./configuration/:/app/build/configuration   
+      - ./configuration/:/app/build/configuration
+    depends_on:
+      db:
+        condition: service_healthy
 
   world:
     container_name: noscore-world
@@ -67,12 +76,15 @@ services:
       - 1337:1337
     expose:
       - 5432
-    networks: 
+    networks:
       - noscore-network
     volumes:
       - ./build/net10.0/linux-musl-x64:/app/build/net10.0
-      - ./configuration/:/app/build/configuration   
-      
+      - ./configuration/:/app/build/configuration
+    depends_on:
+      db:
+        condition: service_healthy
+
   login:
     container_name: noscore-login
     environment:
@@ -88,11 +100,14 @@ services:
       - 4000:4000
     expose:
       - 5432
-    networks: 
+    networks:
       - noscore-network
     volumes:
       - ./build/net10.0/linux-musl-x64:/app/build/net10.0
-      - ./configuration/:/app/build/configuration   
+      - ./configuration/:/app/build/configuration
+    depends_on:
+      db:
+        condition: service_healthy
 
 networks:
   noscore-network:
